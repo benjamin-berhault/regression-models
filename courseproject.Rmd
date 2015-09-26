@@ -1,0 +1,211 @@
+---
+title: "Johns Hopkins - Regression Models Course Project"
+author: "Benjamin Berhault"
+date: '`r format(Sys.time(), ''%B %d, %Y'')`'
+output: pdf_document
+---
+  
+```{r global_options, include=FALSE}
+library(knitr)
+library(ggplot2)
+
+opts_chunk$set(fig.width=7, fig.height=4, warning=FALSE, message=FALSE)
+# to not scientific notation
+options(scipen=999)
+
+```
+#### Mission
+Looking at a data set of a collection of cars, we are interested in exploring the relationship between a set of variables and miles per gallon (MPG) (outcome). We are particularly interested in the following two questions:
+
+* Is an automatic or manual transmission better for MPG
+* Quantify the MPG difference between automatic and manual transmissions
+
+#### URL
+* [Coursera - Johns Hopkins : Regression Models](https://class.coursera.org/regmods-032/)
+* Code source can be found here : [github.com/benjamin-berhault/regression-models](https://github.com/benjamin-berhault/regression-models)
+
+#### Parameters :
+<b>mpg</b> : 	Miles/(US) gallon, <b>cyl</b> :	Number of cylinders, <b>disp</b> : Displacement (cu.in.), <b>hp</b> :	Gross horsepower, <b>drat</b> :	Rear axle ratio, <b>wt</b> : Weight (lb/1000), <b>qsec</b> : 1/4 mile time, <b>vs</b> :	V/S, <b>am</b> :	Transmission (0 = automatic, 1 = manual), <b>gear</b> :	Number of forward gears, <b>carb</b> : Number of carburetors 
+
+```{r include=FALSE}
+################ 
+# Environment prepration...
+
+# clear environment variable
+rm(list=ls(all=TRUE))
+
+# load necessary library
+library(datasets)
+
+################   
+# Keeping the original data
+mtcars.orig <- mtcars
+
+# Convert the categorical variables into factors
+# We don't to transform vs and am as factor because they got only 2 state value
+mtcars$cyl <- factor(mtcars$cyl)
+mtcars$gear <- factor(mtcars$gear)
+mtcars$carb <- factor(mtcars$carb)
+
+```
+
+## Take a look at what the datasets consists of
+```{r echo=FALSE}
+head(mtcars)
+
+```
+We are interested by exploring the relationship between variables. For this purpose, we compute the correlation matrix.
+```{r echo=FALSE, fig.width=4.5, fig.height=4.5, fig.align='center'}
+
+cor_mtcars <- round(cor(mtcars.orig), 2)
+
+get_lower_tri<-function(cormat){
+  cormat[upper.tri(cormat)] <- NA
+  return(cormat)
+}
+
+# Get upper triangle of the correlation matrix
+get_upper_tri <- function(cormat){
+  cormat[lower.tri(cormat)]<- NA
+  return(cormat)
+}
+
+upper_tri <- get_upper_tri(cor_mtcars)
+
+# Melt the correlation matrix
+library(reshape2)
+melted_cormat <- melt(upper_tri)
+melted_cormat <- na.omit(melted_cormat)
+
+# Create a ggheatmap
+ggheatmap <- ggplot(melted_cormat, aes(Var2, Var1, fill = value))+
+  geom_tile(color = "white")+
+  scale_fill_gradient2(low = "red", high = "blue", mid = "white", 
+                       midpoint = 0, limit = c(-1,1), name="Pearson\nCorrelation") +
+  theme_minimal()+ # minimal theme
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+                                   size = 12, hjust = 1), 
+        axis.text.y = element_text(size = 12))+
+  coord_fixed()
+
+ggheatmap + 
+  geom_text(aes(Var2, Var1, label = value*100), color = "black", size = 4) +
+  theme(
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank(),
+    axis.ticks = element_blank(),
+    legend.justification = c(1, 0),
+    legend.position = c(0.6, 0.7),
+    legend.direction = "horizontal")+
+  guides(fill = guide_colorbar(barwidth = 7, barheight = 1,
+                               title.position = "top", title.hjust = 0.5))
+```
+
+We are especially interested in exploring the relationship between miles per gallon (MPG) and the other parameters.
+For this purpose we compute the absolute correlation to highlight parameters that best explain the MPG parameter.
+
+```{r echo=FALSE}
+abs_cor_MPG <- abs(cor_mtcars)[1,2:11]
+abs_cor_MPG <- abs_cor_MPG[order(abs_cor_MPG,decreasing = TRUE)]
+abs_cor_MPG
+
+```
+
+<b>wt</b>, <b>cyl</b>, <b>disp</b> parameters best explain the <b>MPG</b> parameter. Those variables are quite anticorrelated with <b>MPG</b> meaning that the miles driven for a given quantity of fuel, tend to decrease when the weight, the number of cylinders, the displacement size of an engine increase.
+
+## Question 1: Is an automatic or manual transmission better for MPG?
+
+Let's take a look at the consumption distribution (or MPG distribution) by transmission system :
+```{r echo=FALSE, fig.width=4, fig.height=3, fig.align='center'}
+par(mfrow = c(1, 1))
+boxplot(mpg~am, data = mtcars,
+        col = c("blue", "red"),
+        xlab = "Transmission",
+        ylab = "Miles per Gallon",
+        main = "MPG by Transmission Type",
+        names= c("automatic","manual"))
+```
+
+We clearly see a difference between automatic and manual distribution systems. Manual distribution systems are mostly less fuel consuming.
+
+But we want assert that statistically. For this purpose we implement a t-test in the second part of our analysis.
+
+## Question 2 : Quantify the MPG difference between automatic and manual transmissions.
+
+#### Two samples t-test on the MPG parameter distinguishing auto vs manual systems.
+_Null hypothesis: There is no difference between MPG means for automatic and manual transmissions_
+```{r echo=FALSE}
+auto <-mtcars.orig[mtcars.orig$am==0,c("mpg")] 
+manual <- mtcars.orig[mtcars.orig$am==1,c("mpg")]
+t.test(mtcars$mpg ~ mtcars$am)
+
+```
+We get a p-value of `r round(t.test(auto, manual)$p.value,5)`, so we reject the null hypothesis. We are `r 100-round(100*t.test(auto, manual)$p.value,2)`% confident that the mean of both transmissions are significantly different.
+
+And the average miles per gallon for Manual Transmission is `r round(t.test(auto, manual)$estimate[2],2)` which is `r round(t.test(auto, manual)$estimate[2]-t.test(auto, manual)$estimate[1],2)` higher than the average miles of Automatic Transmission. 
+
+The boxplot with respect to the Transmission show significant overlap, indicating that it may not be the best predictor of the MPG. To determine the best predictor, further analysis needs to be done.
+
+## Appendix : Uncertainty in the analysis
+
+First of all, lets take a look to what extent a model only based on the <b>am</b> parameter can explain in regard to MPG consumption.
+
+
+```{r echo=FALSE}
+mpg_am_model <- lm(mpg~am, mtcars)
+sum_mpg_am_model <- summary(mpg_am_model)
+
+```
+<center><table width="100%" style="text-align:center"><tr><td>
+#### R-squared (mpg~am)
+`r round(100*sum_mpg_am_model$r.squared,2)`%
+</td><td>
+#### R-squared adjusted (mpg~am)
+<b>`r round(100*sum_mpg_am_model$adj.r.squared,2)`</b>%
+</td></tr></table></center>
+
+#### Looking for the best predictive model :
+
+To determine which variables to include in our model and to avoid multi-colinearity issue, we used an R stepwise regression function. This function adds and removes independent variables to the model until it finds the combination of independent variables minimizing the Akaike Information Criterion (AIK : measures the relative quality of statistical models).
+
+```{r echo=FALSE}
+mpg_all_model <- lm(mpg~., mtcars)
+best_model <- step(mpg_all_model, trace=0, k=2)
+sum_best <- summary(best_model)
+summary(best_model)
+```
+After computation our best model get an R-squared adjusted of <b>`r round(100*sum_best$adj.r.squared,2)`%</b>. <b>wt</b>, <b>hp</b> and <b>cyl</b> are the variables that best explain miles per gallon consumption if we look at the asterix marks.
+
+Lets boxplot those parameters :
+```{r echo=FALSE, fig.width=5, fig.height=5, fig.align='center'}
+#-------------------------------
+## Exploring the predictors using box plot
+#-------------------------------
+# Plotting the box-plot into 2 * 2 matrix
+par(mfrow=c(2, 2))
+# Impact of Transmission on the Fuel consumption
+boxplot(mtcars$mpg ~ mtcars$am, xlab="Transmission")
+# Impact of weight on the Fuel consumption
+boxplot(mtcars$mpg ~ mtcars$wt, xlab="Weight")
+# Impact of Horsepower on the Fuel consumption
+boxplot(mtcars$mpg ~ mtcars$hp, xlab = "Horesepower")
+# Impact of Cylinder on the Fuel consumption
+boxplot(mtcars$mpg ~ mtcars$cyl, xlab="Cylinder")
+```
+
+Here, we observe that the <b>wt</b>, <b>hp</b> and <b>cyl</b> predictors are more significant than <b>am</b>. And with a p-value of 0.2, we conclude that <b>am</b> seems to have some kind of influence over <b>"MPG"</b> but is not so significant that it could be in the first part of our analysis. 
+
+According to our best predictive model the impact of having a manual distribution system only enhance by <b>1.80921 Miles per Gallon</b> the efficiency of a car in comparison to automatic distribution system.
+
+
+### Residual analysis
+
+```{r echo=FALSE, fig.width=5, fig.height=5, fig.align='center'}
+par(mfrow=c(2,2))
+plot(best_model)
+```
+
+In the residual plot, we don't see any pattern that causes us to believe that the Fuel consumption could be explained more by any other predictors available in the dataset.
