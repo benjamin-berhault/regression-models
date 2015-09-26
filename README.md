@@ -9,7 +9,7 @@ Looking at a data set of a collection of cars, we are interested in exploring th
 #### URL
 
 * [Coursera - Johns Hopkins : Regression Models](https://class.coursera.org/regmods-032/)
-* The report can be found here : [rpubs.com/BenDataGeek/MotorTrendAnalysis](http://rpubs.com/BenDataGeek/MotorTrendAnalysis)
+* The report can be found here : [rpubs.com/BenDataGeek/motor-trend-analysis](http://rpubs.com/BenDataGeek/motor-trend-analysis)
 
 #### Parameters :
 
